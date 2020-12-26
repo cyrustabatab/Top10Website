@@ -12,6 +12,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///top_movies.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 Bootstrap(app)
 
+API_KEY ='8ef7047d1bb9df6aa4c5472037ed36a4'
 db = SQLAlchemy(app)
 
 
@@ -20,9 +21,9 @@ class Movie(db.Model):
     title = db.Column(db.String(250),nullable=False)
     year = db.Column(db.Integer,nullable=False)
     description = db.Column(db.String(500),nullable=False)
-    rating = db.Column(db.Float,nullable=False)
-    ranking = db.Column(db.Integer,nullable=False)
-    review = db.Column(db.String(250),nullable=False)
+    rating = db.Column(db.Float,nullable=True)
+    review = db.Column(db.String(250),nullable=True)
+    ranking = db.Column(db.String(250),nullable=True)
     img_url = db.Column(db.String(250),nullable=False)
     
 class EditForm(FlaskForm):
@@ -31,8 +32,10 @@ class EditForm(FlaskForm):
     submit = SubmitField("Update")
 
 
+class AddForm(FlaskForm):
 
-
+    movie_name = StringField("Movie Title",validators=[DataRequired()])
+    submit = SubmitField("Add Movie")
 
 
 
@@ -48,6 +51,7 @@ def home():
 @app.route("/edit/<int:movie_id>",methods=['GET','POST'])
 def edit(movie_id):
     
+    form = EditForm()
     movie = Movie.query.get(movie_id)
     if form.validate_on_submit():
 
@@ -64,10 +68,81 @@ def edit(movie_id):
 
 
 
-    edit_form = EditForm()
+
+    return render_template("edit.html",movie=movie,form=form)
 
 
-    return render_template("edit.html",movie=movie,form=edit_form)
+
+
+@app.route('/add',methods=['GET','POST'])
+def add():
+    
+    form = AddForm()
+    if form.validate_on_submit():
+
+        title = form.movie_name.data
+
+        params = {'query': title,'api_key': API_KEY,'language': 'en-US'}
+        search_url = "https://api.themoviedb.org/3/search/movie"
+        response = requests.get(search_url,params=params)
+        
+        movies = response.json()
+        movies = movies['results']
+        
+        
+        return render_template('select.html',movies=movies)
+        
+
+
+
+
+
+
+    return render_template("add.html",form=form)
+
+
+
+@app.route("/delete/<int:movie_id>")
+def delete(movie_id):
+
+
+    movie = Movie.query.get(movie_id)
+
+    db.session.delete(movie)
+    db.session.commit()
+
+    return redirect(url_for('home'))
+
+@app.route('/details/<int:movie_id>')
+def get_movie_details_and_add(movie_id):
+    
+    details_url = f"https://api.themoviedb.org/3/movie/{movie_id}"
+
+    params = {'api_key': API_KEY,'language': 'en-US'}
+
+    response = requests.get(details_url,params=params)
+    
+    movie = response.json()
+    poster_path = f"https://image.tmdb.org/t/p/original{movie['poster_path']}"
+
+    title = movie['original_title']
+    description = movie['overview']
+    year = movie['release_date'].split('-')[0]
+
+    new_movie = Movie(title=title,description=description,year=year,img_url=poster_path)
+    
+    db.session.add(new_movie)
+
+    db.session.commit()
+
+
+    return redirect(url_for('home'))
+
+
+
+
+
+
 
 
 
