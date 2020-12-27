@@ -25,6 +25,10 @@ class Movie(db.Model):
     review = db.Column(db.String(250),nullable=True)
     ranking = db.Column(db.String(250),nullable=True)
     img_url = db.Column(db.String(250),nullable=False)
+
+
+    def __repr__(self):
+        return f"Movie({self.title},{self.rating},{self.ranking})"
     
 class EditForm(FlaskForm):
     new_rating = StringField("Your rating out of 10")
@@ -44,7 +48,13 @@ class AddForm(FlaskForm):
 
 @app.route("/")
 def home():
-    movies = Movie.query.all()
+    movies = Movie.query.order_by(Movie.rating).all()
+    print(movies)
+
+    for i in range(len(movies) - 1,-1,-1):
+        movie = movies[len(movies) -1- i]
+        movie.ranking = i + 1
+    db.session.commit()
     return render_template("index.html",movies=movies)
 
 
@@ -136,7 +146,7 @@ def get_movie_details_and_add(movie_id):
     db.session.commit()
 
 
-    return redirect(url_for('home'))
+    return redirect(url_for('edit',movie_id=new_movie.id))
 
 
 
